@@ -1,52 +1,64 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 /* =========================
    TYPE DEFINITIONS
 ========================= */
 type DocumentItem = {
   id: number;
-  name: string;
-  image: string;
+  prodnum: string;
+  created_at: string;
 };
-
-type Person = {
-  name: string;
-  title: string;
-  email: string;
-};
-
-/* =========================
-   DUMMY DATA
-========================= */
-const people: Person[] = [
-  { name: "Iqbal", title: "Frontend Dev", email: "iqbal@mail.com" },
-  { name: "Aldi", title: "Backend Dev", email: "aldi@mail.com" },
-  { name: "Rina", title: "UI Designer", email: "rina@mail.com" },
-];
 
 /* =========================
    MAIN COMPONENT
 ========================= */
 export default function HistoryDocument() {
-
   /* ===== STATE ===== */
   const [keyword, setKeyword] = useState("");
-  const [results, setResults] = useState<DocumentItem[]>([]);
+  const [data, setData] = useState<DocumentItem[]>([]); // data asli
+  const [results, setResults] = useState<DocumentItem[]>([]); // data tampil
 
   /* ===== REFS ===== */
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  /* ===== SEARCH FUNCTION ===== */
-  const handleSearch = async () => {
+  /* ===== FETCH DATA ===== */
+  const fetchData = async () => {
     try {
-      const res = await fetch(`/api/search?q=${keyword}`);
-      const data = await res.json();
-      setResults(data);
+      const res = await fetch("http://127.0.0.1:5000/prodnum");
+
+      if (!res.ok) {
+        throw new Error("Gagal fetch data");
+      }
+
+      const result = await res.json();
+
+      // pastikan array
+      setData(result || []);
+      setResults(result || []);
     } catch (error) {
-      console.error("Search error:", error);
+      console.error("Fetch error:", error);
     }
+  };
+
+  /* ===== LOAD AWAL ===== */
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  /* ===== SEARCH ===== */
+  const handleSearch = () => {
+    if (!keyword) {
+      setResults(data); // reset
+      return;
+    }
+
+    const filtered = data.filter((item) =>
+      item.prodnum.toLowerCase().includes(keyword.toLowerCase()),
+    );
+
+    setResults(filtered);
   };
 
   /* ===== RENDER ===== */
@@ -57,7 +69,6 @@ export default function HistoryDocument() {
 
       <div className="flex flex-row gap-6 px-4 py-6 mt-6">
         <div className="w-full text-center bg-white rounded-xl shadow px-4 py-6">
-
           {/* Title */}
           <h1 className="text-2xl font-bold mt-2">Daftar Dokumen</h1>
 
@@ -66,50 +77,58 @@ export default function HistoryDocument() {
             <input
               className="border p-2 rounded-xl mr-2"
               type="text"
-              placeholder="Search Dokumen..."
+              placeholder="Search Nomor Produksi..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
 
             <button
               onClick={handleSearch}
-              className="bg-blue-500 text-white p-2 rounded-xl"
+              className="bg-blue-500 text-white px-4 py-2 rounded-xl"
             >
               Search
             </button>
-          </div>
-
-          {/* Search Result */}
-          <div className="mt-6">
-            {results.map((item) => (
-              <div key={item.id}>{item.name}</div>
-            ))}
           </div>
 
           {/* Table */}
           <table className="mt-10 w-full border">
             <thead className="bg-gray-200">
               <tr>
-                <th className="border p-2">ID</th>
+                <th className="border p-2">No</th>
+                <th className="border p-2">Nomor Produksi</th>
                 <th className="border p-2">Date</th>
-                <th className="border p-2">Document</th>
                 <th className="border p-2">Info</th>
               </tr>
             </thead>
 
             <tbody>
-              {people.map((person) => (
-                <tr key={person.email} className="odd:bg-white even:bg-gray-50">
-                  <td className="border p-2">{person.name}</td>
-                  <td className="border p-2">{person.title}</td>
-                  <td className="border p-2">{person.email}</td>
-                  <td className="border p-2">Detail</td>
+              {results.length > 0 ? (
+                results.map((item, index) => (
+                  <tr key={item.id} className="odd:bg-white even:bg-gray-50">
+                    <td className="border p-2">{index + 1}</td>
+                    <td className="border p-2">{item.prodnum}</td>
+                    <td className="border p-2">
+                      {new Date(item.created_at).toLocaleString()}
+                    </td>
+                    <td className="border p-2">
+                      <a
+                        href={`/history-document/${item.id}`}
+                        className="bg-green-500 text-white px-3 py-1 rounded"
+                      >
+                        Detail
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center p-4">
+                    Data tidak ditemukan
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
-
           </table>
-
         </div>
       </div>
     </>

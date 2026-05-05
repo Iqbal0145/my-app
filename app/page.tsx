@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 
 // ===== MAIN COMPONENT =====
 export default function Home() {
@@ -64,33 +65,25 @@ export default function Home() {
         img.onload = () => {
           const canvas = canvasRef.current;
           if (!canvas) return;
-
           const ctx = canvas.getContext("2d");
           if (!ctx) return;
 
+          // === Crop ke rasio A4 ===
           const imgWidth = img.width;
           const imgHeight = img.height;
-
-          // ===== Rasio A4 Portrait =====
           const a4Ratio = 1 / 1.414;
-
           let cropWidth = imgWidth;
           let cropHeight = imgWidth / a4Ratio;
-
           if (cropHeight > imgHeight) {
             cropHeight = imgHeight;
             cropWidth = imgHeight * a4Ratio;
           }
-
           const cropX = (imgWidth - cropWidth) / 2;
           const cropY = (imgHeight - cropHeight) / 2;
 
-          // ===== Ukuran Output A4 HD =====
           canvas.width = 1240;
           canvas.height = 1754;
-
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-
           ctx.drawImage(
             img,
             cropX,
@@ -103,18 +96,59 @@ export default function Home() {
             canvas.height,
           );
 
+          const roiWidthPct = 0.15;
+          const roiHeightPct = 0.1;
+          const roiRightPct = 0.03;
+          const roiBottomPct = 0.19;
+
+          const roiWidth = canvas.width * roiWidthPct;
+          const roiHeight = canvas.height * roiHeightPct;
+          const roiX = canvas.width - (roiWidth + canvas.width * roiRightPct);
+          const roiY =
+            canvas.height - (roiHeight + canvas.height * roiBottomPct);
+
+          const barcodeCanvas = document.createElement("canvas");
+
+          const scale = 5;
+          barcodeCanvas.width = roiWidth * scale;
+          barcodeCanvas.height = roiHeight * scale;
+
+          const bctx = barcodeCanvas.getContext("2d");
+          if (!bctx) return;
+
+          bctx.filter = "contrast(1.5) grayscale(1)";
+          bctx.drawImage(
+            canvas,
+            roiX,
+            roiY,
+            roiWidth,
+            roiHeight,
+            0,
+            0,
+            barcodeCanvas.width,
+            barcodeCanvas.height,
+          );
+
+          const codeReader = new BrowserMultiFormatReader();
+          const imageDataUrl = barcodeCanvas.toDataURL("image/png");
+
+          codeReader
+            .decodeFromImageUrl(imageDataUrl)
+            .then((result) => {
+              console.log("Barcode:", result.getText());
+            })
+            .catch(() => {
+              console.log(" Barcode tidak terbaca di area biru");
+            });
+
           const finalImage = canvas.toDataURL("image/jpeg", 0.95);
-
           setPhotos((prev) => [...prev, finalImage]);
-
           URL.revokeObjectURL(url);
         };
 
         img.src = url;
       })
-      .catch((err) => {
-        console.error("Failed to capture photo:", err);
-      });
+      .catch((err) => console.error("Capture gagal:", err));
   }, []);
 
   // ===== PHOTO TRIGGER - KEYDOWN EVENT LISTENER =====
@@ -137,18 +171,20 @@ export default function Home() {
 
   const handleSubmit = async () => {
     try {
-      const formData = new FormData();
-
-      photos.forEach((photo) => {
-        formData.append("images", photo);
-      });
+      const payload = {
+        images: photos[0],
+      };
 
       const response = await fetch("http://localhost:5000/prodnum", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
+      // ... sisa kode
 
       if (result.success) {
         alert(`Upload berhasil! ${result.totalFiles} file terkirim`);
@@ -192,6 +228,17 @@ export default function Home() {
                     autoPlay
                     playsInline
                     className="w-full h-full object-cover"
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "19%",
+                      right: "3%",
+                      width: "15%",
+                      height: "10%",
+                      border: "2px solid blue",
+                      pointerEvents: "none",
+                    }}
                   />
                   <div className="absolute border-4 border-lime-400 rounded-lg pointer-events-none" />
                 </div>
