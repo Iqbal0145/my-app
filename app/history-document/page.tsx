@@ -2,28 +2,41 @@
 
 import { useRef, useState, useEffect } from "react";
 
-/* =========================
-   TYPE DEFINITIONS
-========================= */
+
 type DocumentItem = {
   id: number;
   prodnum: string;
   created_at: string;
 };
 
-/* =========================
-   MAIN COMPONENT
-========================= */
-export default function HistoryDocument() {
-  /* ===== STATE ===== */
-  const [keyword, setKeyword] = useState("");
-  const [data, setData] = useState<DocumentItem[]>([]); // data asli
-  const [results, setResults] = useState<DocumentItem[]>([]); // data tampil
 
-  /* ===== REFS ===== */
+export default function HistoryDocument() {
+
+  const [keyword, setKeyword] = useState("");
+  const [data, setData] = useState<DocumentItem[]>([]);
+  const [results, setResults] = useState<DocumentItem[]>([]);
+
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  /* ===== FETCH DATA ===== */
+
+const formatWIB = (dateStr: string) => {
+  if (!dateStr) return "-";
+
+  const date = new Date(dateStr);
+
+  if (isNaN(date.getTime())) return dateStr;
+
+  const day   = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year  = date.getUTCFullYear();
+  const hour  = String(date.getUTCHours()).padStart(2, "0");
+  const min   = String(date.getUTCMinutes()).padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hour}:${min}`;
+};
+
+
   const fetchData = async () => {
     try {
       const res = await fetch("http://127.0.0.1:5000/prodnum");
@@ -33,8 +46,8 @@ export default function HistoryDocument() {
       }
 
       const result = await res.json();
+      console.log("Data dari backend:", result);
 
-      // pastikan array
       setData(result || []);
       setResults(result || []);
     } catch (error) {
@@ -42,15 +55,14 @@ export default function HistoryDocument() {
     }
   };
 
-  /* ===== LOAD AWAL ===== */
   useEffect(() => {
     fetchData();
   }, []);
 
-  /* ===== SEARCH ===== */
+
   const handleSearch = () => {
     if (!keyword) {
-      setResults(data); // reset
+      setResults(data);
       return;
     }
 
@@ -61,7 +73,7 @@ export default function HistoryDocument() {
     setResults(filtered);
   };
 
-  /* ===== RENDER ===== */
+
   return (
     <>
       {/* Hidden Canvas */}
@@ -107,9 +119,7 @@ export default function HistoryDocument() {
                   <tr key={item.id} className="odd:bg-white even:bg-gray-50">
                     <td className="border p-2">{index + 1}</td>
                     <td className="border p-2">{item.prodnum}</td>
-                    <td className="border p-2">
-                      {new Date(item.created_at).toLocaleString()}
-                    </td>
+                    <td className="border p-2">{formatWIB(item.created_at)}</td>
                     <td className="border p-2">
                       <a
                         href={`/history-document/${item.id}`}
