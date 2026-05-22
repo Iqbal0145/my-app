@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image"; // 1. Import komponen Image
+import Image from "next/image";
 
 type DocumentItem = {
   id: number;
@@ -15,6 +15,23 @@ export default function DetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const [data, setData] = useState<DocumentItem | null>(null);
+
+  /* ===== HELPER ===== */
+  const formatWIB = (dateStr: string) => {
+    if (!dateStr) return "-";
+
+    const date = new Date(dateStr);
+
+    if (isNaN(date.getTime())) return dateStr;
+
+    const day   = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const year  = date.getUTCFullYear();
+    const hour  = String(date.getUTCHours()).padStart(2, "0");
+    const min   = String(date.getUTCMinutes()).padStart(2, "0");
+
+    return `${day}/${month}/${year} ${hour}:${min}`;
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -38,17 +55,13 @@ export default function DetailPage() {
 
       <div className="mt-4">
         <p>
-          <b>ID:</b> {data.id}
-        </p>
-        <p>
           <b>Prodnum:</b> {data.prodnum}
         </p>
         <p>
-          <b>Date:</b> {data.created_at}
+          <b>Date:</b> {formatWIB(data.created_at)}
         </p>
 
         {data.filename && (
-          /* 2. Gunakan komponen Image */
           <div className="mt-4 flex justify-center">
             <Image
               src={`http://localhost:5000/uploads/${data.filename}`}
@@ -127,11 +140,12 @@ export default function DetailPage() {
         </button>
 
         {/* Back */}
-      <button
-        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-        onClick={() => window.history.back()}
-      >Back
-      </button>
+        <button
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          onClick={() => window.history.back()}
+        >
+          Back
+        </button>
       </div>
     </div>
   );
